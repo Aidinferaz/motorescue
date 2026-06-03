@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="description" content="MotoRescue.ID — Layanan mekanik darurat on-demand di Jakarta. Bantuan cepat untuk ban bocor, mogok mesin, dan derek darurat." />
+  <meta name="theme-color" content="#111827" />
+  <title>MotoRescue.ID — Bantuan Mekanik Darurat</title>
+
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS v3 CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            display: ['Outfit', 'sans-serif'],
+          },
+          colors: {
+            primary: { DEFAULT: '#E11D48', dark: '#9F1239', light: '#FFE4E6' },
+            slate: {
+              850: '#151e2e',
+              900: '#0f172a',
+              950: '#020617',
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Leaflet.js CDN -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="css/app.css" />
+</head>
+
+<body class="bg-slate-100 dark:bg-slate-950 font-sans antialiased min-h-screen flex items-center justify-center p-4 selection:bg-primary/30 transition-colors duration-300">
+
+  <!-- ============================================ -->
+  <!-- DEVICE MOCKUP WRAPPER                        -->
+  <!-- ============================================ -->
+  <div class="relative w-[390px] h-[844px] bg-white dark:bg-black rounded-[3rem] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] dark:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.8)] overflow-hidden transition-colors duration-300"
+       style="border: 14px solid #2C2C2E; box-shadow: 0 0 0 2px #48484A, 0 25px 50px -12px rgba(0,0,0,0.8);">
+
+    <!-- Dynamic Island -->
+    <div class="absolute top-[10px] left-1/2 -translate-x-1/2 w-[126px] h-[37px] bg-black rounded-full z-50"
+         style="box-shadow: inset 0 0 4px rgba(0,0,0,0.8);"></div>
+
+    <!-- =========================================== -->
+    <!-- INNER APP CONTAINER                         -->
+    <!-- =========================================== -->
+    <div class="flex flex-col w-full h-full rounded-[2.4rem] overflow-hidden bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
+    <div id="app-container" class="flex-1 overflow-y-auto scrollbar-hide relative min-h-0">
+
+      <!-- ========================================= -->
+      <!-- SCREEN 0 — LOGIN                         -->
+      <!-- ========================================= -->
+      <div id="screen-login" class="screen h-full flex flex-col items-center justify-center bg-slate-900 px-6 relative overflow-hidden">
+        <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/20 via-slate-900 to-slate-900"></div>
+        <div class="relative z-10 w-full flex flex-col items-center">
+          <div class="w-24 h-24 bg-primary text-white rounded-3xl flex items-center justify-center mb-6 shadow-[0_0_40px_rgba(225,29,72,0.5)]">
+            <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+          </div>
+          <h1 class="text-white font-display font-black text-3xl mb-2 text-center">MotoRescue.ID</h1>
+          <p class="text-slate-400 text-sm mb-12 text-center">Solusi Cepat Darurat Kendaraan Anda</p>
+
+          <button onclick="AppState.setRole('customer'); AppState.navigateTo('home')" class="w-full py-4 rounded-2xl bg-white text-slate-900 font-display font-bold text-sm mb-4 active:scale-95 transition-all shadow-xl hover:bg-slate-100">
+            Masuk sebagai Customer
+          </button>
+          
+          <button onclick="AppState.setRole('mechanic'); AppState.navigateTo('mechanic-home')" class="w-full py-4 rounded-2xl bg-transparent border border-slate-700 text-white font-display font-bold text-sm active:scale-95 transition-all hover:bg-slate-800">
+            Login sebagai Mitra (Mekanik)
+          </button>
+        </div>
+      </div>
+
+      <!-- ========================================= -->
+      <!-- SCREEN 1 — HOME                          -->
+      <!-- ========================================= -->
+      <div id="screen-home" class="screen min-h-full">
+
+        <!-- Status Bar -->
+        <div class="pt-14 px-6 pb-2 flex items-center justify-between text-slate-800 dark:text-white text-xs font-medium transition-colors duration-300">
+          <span id="status-time" class="font-semibold">09:41</span>
+          <div class="flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4z"/></svg>
+          </div>
+        </div>
+
+        <!-- Header / Location & Theme Toggle -->
+        <div class="px-5 pb-3">
+          <div class="rounded-2xl px-4 py-3 flex items-center justify-between bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm transition-colors duration-300">
+            <div class="flex items-center gap-3">
+              <div class="bg-primary/10 dark:bg-primary/20 p-2 rounded-full text-primary">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+              </div>
+              <div>
+                <p class="text-slate-900 dark:text-white text-sm font-semibold transition-colors duration-300">Jl. Sudirman, Jakarta</p>
+                <p class="text-slate-500 dark:text-slate-400 text-xs transition-colors duration-300">Lokasi Anda saat ini</p>
+              </div>
+            </div>
+            
+            <button id="btn-theme-toggle" class="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 transition-colors">
+              <svg id="icon-moon" class="w-5 h-5 hidden" fill="currentColor" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+              <svg id="icon-sun" class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 7a5 5 0 100 10 5 5 0 000-10zM2 13h2a1 1 0 100-2H2a1 1 0 100 2zm18 0h2a1 1 0 100-2h-2a1 1 0 100 2zM11 2v2a1 1 0 102 0V2a1 1 0 10-2 0zm0 18v2a1 1 0 102 0v-2a1 1 0 10-2 0zM5.99 4.58a1 1 0 10-1.41 1.41l1.06 1.06a1 1 0 101.41-1.41L5.99 4.58zm12.37 12.37a1 1 0 10-1.41 1.41l1.06 1.06a1 1 0 101.41-1.41l-1.06-1.06zm1.06-10.96a1 1 0 10-1.41-1.41l-1.06 1.06a1 1 0 101.41 1.41l1.06-1.06zM7.05 18.36a1 1 0 10-1.41-1.41l-1.06 1.06a1 1 0 101.41 1.41l1.06-1.06z"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Map Section -->
+        <div class="relative mx-5 shadow-sm rounded-2xl">
+          <div id="map-home" class="h-[260px] w-full rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700/80" style="z-index: 1;"></div>
+          <!-- Map overlay gradient -->
+          <div class="absolute inset-0 map-gradient-overlay rounded-2xl pointer-events-none" style="z-index: 2;"></div>
+          <!-- Map badge -->
+          <div class="absolute bottom-3 left-3 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md rounded-xl px-3 py-1.5 flex items-center gap-2 border border-slate-200/50 dark:border-slate-700/50 shadow-sm" style="z-index: 3;">
+            <div class="w-2 h-2 bg-green-500 rounded-full eta-pulse"></div>
+            <span class="text-xs text-slate-700 dark:text-slate-300 font-medium">4 mekanik terdekat</span>
+          </div>
+        </div>
+
+        <!-- SOS Button Section -->
+        <div class="flex flex-col items-center py-7 relative">
+          <button id="btn-sos"
+                  class="w-24 h-24 rounded-full bg-gradient-to-br from-primary to-rose-700 text-white font-display font-bold tracking-widest flex items-center justify-center sos-pulse sos-glow transition-transform active:scale-90 relative shadow-lg shadow-primary/40">
+            <div class="absolute inset-[-8px] rounded-full border-2 border-primary/30 float-anim"></div>
+            <span class="relative z-10 text-2xl">SOS</span>
+          </button>
+          <p class="text-slate-500 dark:text-slate-400 text-sm mt-5 font-medium">Tekan untuk bantuan darurat</p>
+        </div>
+
+        <!-- Quick Service Menu -->
+        <div class="px-5 pb-4">
+          <h2 class="text-slate-800 dark:text-white font-display font-bold text-lg mb-3">Layanan Cepat</h2>
+          <div class="grid grid-cols-3 gap-3">
+            <!-- Ban Bocor -->
+            <button class="quick-action quick-action-btn flex flex-col items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-sm active:scale-95 transition-all"
+                    data-service="flat_tire">
+              <div class="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-700/50 flex items-center justify-center text-primary">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" /></svg>
+              </div>
+              <span class="text-slate-700 dark:text-slate-300 text-xs font-semibold">Ban Bocor</span>
+            </button>
+            <!-- Mogok Mesin -->
+            <button class="quick-action quick-action-btn flex flex-col items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-sm active:scale-95 transition-all"
+                    data-service="engine">
+              <div class="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-700/50 flex items-center justify-center text-orange-500">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.99l1.005.828c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
+              </div>
+              <span class="text-slate-700 dark:text-slate-300 text-xs font-semibold">Mogok</span>
+            </button>
+            <!-- Derek Darurat -->
+            <button class="quick-action quick-action-btn flex flex-col items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-sm active:scale-95 transition-all"
+                    data-service="towing">
+              <div class="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-700/50 flex items-center justify-center text-amber-500">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" /></svg>
+              </div>
+              <span class="text-slate-700 dark:text-slate-300 text-xs font-semibold">Derek</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Nearby Mechanics -->
+        <div class="px-5 pb-4">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-slate-800 dark:text-white font-display font-bold text-lg">Mekanik Terdekat</h2>
+            <span class="text-primary text-xs font-semibold cursor-pointer hover:text-rose-600 transition-colors">Lihat Semua →</span>
+          </div>
+          <div id="mechanics-list">
+            <!-- Loading skeleton placeholder -->
+            <div class="space-y-3">
+              <div class="skeleton h-20 w-full rounded-2xl border border-slate-200 dark:border-slate-700"></div>
+              <div class="skeleton h-20 w-full rounded-2xl border border-slate-200 dark:border-slate-700"></div>
+              <div class="skeleton h-20 w-full rounded-2xl border border-slate-200 dark:border-slate-700"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="h-4"></div>
+      </div>
+
+      <!-- ========================================= -->
+      <!-- SCREEN 2 — TRIAGE                        -->
+      <!-- ========================================= -->
+      <div id="screen-triage" class="screen hidden min-h-full">
+
+        <!-- Header -->
+        <div class="pt-14 px-5 pb-4">
+          <div class="flex items-center gap-3">
+            <button id="btn-triage-back"
+                    class="w-10 h-10 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-center text-slate-800 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors active:scale-95">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+            </button>
+            <div>
+              <h1 class="text-slate-900 dark:text-white font-display font-bold text-xl">Estimasi Harga</h1>
+              <p class="text-slate-500 dark:text-slate-400 text-xs">Jelaskan masalah & kendaraan Anda</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="px-5 pb-3">
+          <div id="selected-service-badge"
+               class="service-badge inline-flex items-center gap-2 px-4 py-2 rounded-full text-primary font-semibold text-sm shadow-sm bg-primary/10 border-primary/20">
+            🔧 Layanan Umum
+          </div>
+        </div>
+
+        <!-- Vehicle Details (NEW) -->
+        <div class="px-5 pb-4">
+          <h3 class="text-slate-800 dark:text-slate-300 text-sm font-bold mb-3 flex items-center gap-2">
+             <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"></path></svg>
+             Informasi Kendaraan
+          </h3>
+          <div class="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700/50 space-y-3">
+            <!-- Brand -->
+            <div>
+              <label class="text-slate-600 dark:text-slate-400 text-xs font-semibold mb-1 block">Merek Kendaraan</label>
+              <select id="vehicle-brand" class="w-full rounded-xl px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white focus:outline-none focus:border-primary transition-colors">
+                 <option value="" disabled selected>Pilih Merek</option>
+                 <option value="Honda">Honda</option>
+                 <option value="Yamaha">Yamaha</option>
+                 <option value="Suzuki">Suzuki</option>
+                 <option value="Kawasaki">Kawasaki</option>
+                 <option value="Vespa">Vespa</option>
+                 <option value="other">Lainnya...</option>
+              </select>
+              <input type="text" id="vehicle-brand-other" class="hidden w-full mt-2 rounded-xl px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white focus:outline-none focus:border-primary" placeholder="Masukkan merek kendaraan...">
+            </div>
+            
+            <!-- Type & Year -->
+            <div class="flex gap-3">
+              <div class="flex-1">
+                <label class="text-slate-600 dark:text-slate-400 text-xs font-semibold mb-1 block">Tipe / Model</label>
+                <select id="vehicle-type" class="w-full rounded-xl px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white focus:outline-none focus:border-primary transition-colors">
+                  <option value="" disabled selected>Pilih Tipe</option>
+                  <option value="Matic">Matic</option>
+                  <option value="Bebek">Bebek/Moped</option>
+                  <option value="Sport">Sport</option>
+                  <option value="other">Lainnya...</option>
+                </select>
+                <input type="text" id="vehicle-type-other" class="hidden w-full mt-2 rounded-xl px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white focus:outline-none focus:border-primary" placeholder="Tipe...">
+              </div>
+              <div class="w-24">
+                <label class="text-slate-600 dark:text-slate-400 text-xs font-semibold mb-1 block">Tahun</label>
+                <input type="number" id="vehicle-year" min="1990" max="2026" class="w-full rounded-xl px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-white focus:outline-none focus:border-primary transition-colors" placeholder="Tahun">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Issue Description -->
+        <div class="px-5 pb-4">
+          <label class="text-slate-800 dark:text-slate-300 text-sm font-bold mb-2 flex items-center gap-2">
+            <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+            Deskripsi Masalah
+          </label>
+          <textarea id="issue-description"
+                    class="custom-textarea w-full h-28 rounded-2xl px-4 py-3 bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-sm placeholder-slate-400 border border-slate-200 dark:border-slate-700 shadow-sm resize-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                    placeholder="Jelaskan masalah kendaraan Anda secara detail (contoh: Ban depan bocor dan mesin brebet)..."></textarea>
+        </div>
+
+        <!-- Quick Fill Buttons -->
+        <div class="px-5 pb-5">
+          <p class="text-slate-500 dark:text-slate-400 text-xs mb-2 font-medium">Pilih cepat:</p>
+          <div class="flex flex-wrap gap-2">
+            <button class="quick-fill-btn rounded-full px-3 py-1.5 text-xs text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-primary hover:text-primary active:scale-95 transition-all shadow-sm"
+                    data-text="Ban depan bocor, motor tidak bisa jalan">
+              Ban depan bocor
+            </button>
+            <button class="quick-fill-btn rounded-full px-3 py-1.5 text-xs text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-primary hover:text-primary active:scale-95 transition-all shadow-sm"
+                    data-text="Motor tidak bisa distarter, sudah coba berkali-kali">
+              Tidak bisa distarter
+            </button>
+            <button class="quick-fill-btn rounded-full px-3 py-1.5 text-xs text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-primary hover:text-primary active:scale-95 transition-all shadow-sm"
+                    data-text="Aki motor tekor/soak, lampu dan klakson mati">
+              Aki tekor / soak
+            </button>
+          </div>
+        </div>
+
+        <!-- Estimate Button -->
+        <div class="px-5 pb-5">
+          <button id="btn-estimate"
+                  class="w-full py-3.5 rounded-2xl bg-primary hover:bg-rose-700 text-white font-display font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/30">
+            <span>🔍</span>
+            <span>Cek Estimasi Harga</span>
+          </button>
+        </div>
+
+        <!-- Loading Skeleton -->
+        <div id="estimation-loading" class="hidden px-5 pb-5">
+          <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm rounded-2xl p-5 space-y-4">
+            <div class="skeleton h-5 w-40 rounded"></div>
+            <div class="skeleton h-4 w-full rounded"></div>
+            <div class="skeleton h-4 w-3/4 rounded"></div>
+            <div class="skeleton h-10 w-full rounded-xl mt-2"></div>
+          </div>
+        </div>
+
+        <!-- Estimation Result -->
+        <div id="estimation-result" class="hidden px-5 pb-5">
+          <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-lg rounded-2xl p-5">
+            <!-- AI Summary -->
+            <div id="ai-summary" class="hidden mb-4 p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/30">
+              <div class="flex items-center gap-2 mb-1.5">
+                <span class="text-sm">🤖</span>
+                <span class="text-blue-600 dark:text-blue-400 text-xs font-bold uppercase tracking-wide">Analisis AI OpenRouter</span>
+              </div>
+              <p class="text-slate-700 dark:text-slate-300 text-xs leading-relaxed"></p>
+            </div>
+
+            <h3 class="text-slate-900 dark:text-white font-display font-bold text-base mb-3 border-b border-slate-200 dark:border-slate-700 pb-2">Rincian Estimasi</h3>
+
+            <!-- Parts List -->
+            <div id="parts-list" class="mb-3 space-y-1">
+              <!-- Populated by JS -->
+            </div>
+
+            <!-- Fee Breakdown -->
+            <div class="space-y-2 pt-2">
+              <div class="flex justify-between items-center text-sm">
+                <span class="text-slate-500 dark:text-slate-400">Biaya Panggilan</span>
+                <span id="callout-fee" class="text-slate-800 dark:text-slate-200 font-medium">Rp 25.000</span>
+              </div>
+              <div class="flex justify-between items-center text-sm">
+                <span class="text-slate-500 dark:text-slate-400">Estimasi Perbaikan</span>
+                <span id="repair-fee" class="text-slate-800 dark:text-slate-200 font-medium">—</span>
+              </div>
+              <div class="border-t border-slate-200 dark:border-slate-700 border-dashed pt-3 mt-3 flex justify-between items-center">
+                <span class="text-slate-900 dark:text-white font-display font-bold text-base">Total Estimasi</span>
+                <span id="total-fee" class="text-primary font-black text-lg">—</span>
+              </div>
+            </div>
+
+            <!-- Approve Button -->
+            <button id="btn-approve"
+                    class="w-full mt-5 py-3.5 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-display font-bold text-sm flex items-center justify-center gap-2 hover:bg-slate-800 dark:hover:bg-slate-100 active:scale-[0.98] transition-all disabled:opacity-50 shadow-md">
+              ✅ Setuju & Cari Mekanik
+            </button>
+          </div>
+        </div>
+
+        <div class="h-4"></div>
+      </div>
+
+      <!-- ========================================= -->
+      <!-- SCREEN 3 — TRACKING                      -->
+      <!-- ========================================= -->
+      <div id="screen-tracking" class="screen hidden h-full flex flex-col">
+
+        <!-- Map (Top Half) -->
+        <div class="relative flex-shrink-0 bg-slate-200 dark:bg-slate-800" style="height: 55%;">
+          <div id="map-tracking" class="h-full w-full" style="z-index: 1;"></div>
+          <!-- Back button on map -->
+          <button id="btn-back-home"
+                  class="absolute top-14 left-4 w-10 h-10 rounded-full bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border border-slate-200 dark:border-slate-700 shadow-md flex items-center justify-center text-slate-800 dark:text-white active:scale-95 transition-transform"
+                  style="z-index: 10;">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+          </button>
+          <!-- Live badge -->
+          <div class="absolute top-14 right-4 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border border-slate-200 dark:border-slate-700 shadow-md rounded-full px-3 py-1.5 flex items-center gap-2" style="z-index: 10;">
+            <div class="w-2 h-2 bg-primary rounded-full eta-pulse"></div>
+            <span class="text-xs text-slate-800 dark:text-white font-bold">LIVE</span>
+          </div>
+        </div>
+
+        <!-- Mechanic Info Panel (Bottom Half) -->
+        <div class="flex-1 bottom-panel bg-white dark:bg-slate-900 shadow-[0_-10px_25px_-5px_rgba(0,0,0,0.1)] dark:shadow-[0_-10px_25px_-5px_rgba(0,0,0,0.5)] relative z-10 rounded-t-3xl border-t border-slate-200 dark:border-slate-800">
+          <!-- Handle Bar -->
+          <div class="w-12 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto mt-3 mb-5"></div>
+
+          <!-- Tracking Info Panel -->
+          <div id="tracking-info-panel" class="px-5">
+            <!-- Mechanic Info Row -->
+            <div class="flex items-center gap-4 mb-5 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50">
+              <img id="mechanic-photo"
+                   class="w-14 h-14 rounded-full object-cover border-2 border-primary/50 shadow-sm"
+                   src=""
+                   alt="Mekanik"
+                   onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect fill=%22%23F1F5F9%22 width=%22100%22 height=%22100%22/><path fill=%22%2394A3B8%22 d=%22M50 55c-11 0-20-9-20-20s9-20 20-20 20 9 20 20-9 20-20 20zm0-35c-8.3 0-15 6.7-15 15s6.7 15 15 15 15-6.7 15-15-6.7-15-15-15zM26 85c0-13.3 10.7-24 24-24s24 10.7 24 24v5H26v-5z%22/></svg>'" />
+              <div class="flex-1 min-w-0">
+                <h3 id="mechanic-name" class="text-slate-900 dark:text-white font-display font-bold text-base truncate">Mekanik</h3>
+                <p id="mechanic-plate" class="text-slate-500 dark:text-slate-400 text-sm font-medium">B XXXX XXX</p>
+              </div>
+              <button id="btn-call-mechanic-track"
+                      class="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 shadow-sm flex items-center justify-center active:scale-90 transition-transform">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+              </button>
+            </div>
+
+            <!-- ETA Section -->
+            <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm rounded-2xl p-4 mb-4">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                  <div class="w-2.5 h-2.5 bg-primary rounded-full eta-pulse shadow-[0_0_8px_rgba(225,29,72,0.6)]"></div>
+                  <span class="text-slate-700 dark:text-slate-300 text-sm font-semibold">Tiba dalam</span>
+                </div>
+                <div class="flex items-baseline gap-1">
+                  <span id="eta-minutes" class="text-slate-900 dark:text-white font-display font-black text-2xl">8</span>
+                  <span class="text-slate-500 dark:text-slate-400 text-sm font-medium">menit</span>
+                </div>
+              </div>
+              <!-- Progress Bar -->
+              <div class="h-2 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                <div id="progress-fill" class="h-full bg-gradient-to-r from-rose-500 to-primary rounded-full transition-all duration-500" style="width: 25%"></div>
+              </div>
+            </div>
+
+            <!-- Status Steps -->
+            <div class="space-y-4 pb-5 pl-2">
+              <div class="flex items-center gap-4 relative">
+                <div class="absolute left-[15px] top-8 bottom-[-16px] w-[2px] bg-emerald-500/30"></div>
+                <div class="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center z-10 shadow-sm border border-emerald-200 dark:border-emerald-500/30">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+                </div>
+                <span id="step-1-text" class="text-slate-600 dark:text-slate-300 font-medium text-sm">Pesanan dikonfirmasi</span>
+              </div>
+              <div class="flex items-center gap-4 relative">
+                <div class="absolute left-[15px] top-8 bottom-[-16px] w-[2px] bg-slate-200 dark:bg-slate-700"></div>
+                <div id="step-2-icon" class="w-8 h-8 rounded-full bg-primary/10 dark:bg-primary/20 text-primary border border-primary/20 flex items-center justify-center z-10 shadow-sm eta-pulse">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                </div>
+                <span id="step-2-text" class="text-slate-900 dark:text-white font-bold text-sm">Mekanik dalam perjalanan</span>
+              </div>
+              <div class="flex items-center gap-4 relative">
+                <div id="step-3-icon" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 flex items-center justify-center z-10">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                </div>
+                <span id="step-3-text" class="text-slate-500 dark:text-slate-500 font-medium text-sm">Perbaikan dimulai</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Arrival Message -->
+          <div id="arrival-message" class="hidden px-5 py-8 text-center bg-white dark:bg-slate-900 h-full rounded-t-3xl">
+            <div class="text-6xl mb-4">🎉</div>
+            <h2 id="arrival-title" class="text-slate-900 dark:text-white font-display font-black text-2xl mb-2">Mekanik Telah Tiba!</h2>
+            <p id="arrival-desc" class="text-slate-500 dark:text-slate-400 text-sm mb-8">Mekanik sudah di lokasi Anda dan siap membantu masalah kendaraan Anda.</p>
+            <button onclick="AppState.navigateTo('service')"
+                    class="w-full py-3.5 rounded-2xl bg-primary hover:bg-rose-700 text-white font-display font-bold text-sm active:scale-95 transition-transform shadow-md">
+              Pantau Proses Servis
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================= -->
+      <!-- SCREEN 4 — SERVICE PROGRESS & PAYMENT    -->
+      <!-- ========================================= -->
+      <div id="screen-service" class="screen hidden h-full flex flex-col bg-slate-50 dark:bg-slate-900">
+        <!-- Header -->
+        <div class="pt-14 px-5 pb-4 bg-white dark:bg-slate-800 shadow-sm border-b border-slate-200 dark:border-slate-700">
+          <h1 class="text-slate-900 dark:text-white font-display font-bold text-xl">Proses Servis</h1>
+          <p class="text-slate-500 dark:text-slate-400 text-xs">Pengerjaan & Pembayaran</p>
+        </div>
+
+        <div class="flex-1 overflow-y-auto scrollbar-hide px-5 py-6 space-y-6">
+          
+          <!-- Tracker -->
+          <div id="service-tracker" class="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700">
+             <!-- Diagnosa -->
+             <div class="flex items-start gap-4 relative mb-6">
+                <div class="absolute left-[15px] top-8 bottom-[-24px] w-[2px] bg-slate-200 dark:bg-slate-700" id="line-diagnosa"></div>
+                <div id="icon-diagnosa" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 flex items-center justify-center z-10 shrink-0">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </div>
+                <div>
+                  <h3 id="text-diagnosa" class="text-slate-500 dark:text-slate-400 font-bold text-sm transition-colors">Diagnosa Kendaraan</h3>
+                  <p class="text-slate-400 text-xs mt-1">Mekanik sedang mengecek kerusakan...</p>
+                </div>
+             </div>
+             
+             <!-- Perbaikan -->
+             <div class="flex items-start gap-4 relative mb-6">
+                <div class="absolute left-[15px] top-8 bottom-[-24px] w-[2px] bg-slate-200 dark:bg-slate-700" id="line-perbaikan"></div>
+                <div id="icon-perbaikan" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 flex items-center justify-center z-10 shrink-0 transition-colors">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                </div>
+                <div>
+                  <h3 id="text-perbaikan" class="text-slate-500 dark:text-slate-400 font-bold text-sm transition-colors">Proses Perbaikan</h3>
+                  <p class="text-slate-400 text-xs mt-1">Suku cadang diganti dan mesin diservis...</p>
+                </div>
+             </div>
+             
+             <!-- Selesai / Pembayaran -->
+             <div class="flex items-start gap-4 relative">
+                <div id="icon-pembayaran" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 flex items-center justify-center z-10 shrink-0 transition-colors">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </div>
+                <div>
+                  <h3 id="text-pembayaran" class="text-slate-500 dark:text-slate-400 font-bold text-sm transition-colors">Menunggu Pembayaran</h3>
+                  <p class="text-slate-400 text-xs mt-1">Servis selesai, silakan selesaikan transaksi.</p>
+                </div>
+             </div>
+          </div>
+
+          <!-- Payment Section -->
+          <div id="payment-section" class="hidden transition-opacity">
+             <h2 class="text-slate-900 dark:text-white font-display font-bold text-lg mb-3">Tagihan</h2>
+             <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 mb-5">
+               <div class="flex justify-between items-center text-sm mb-2">
+                 <span class="text-slate-500">Biaya Panggilan</span>
+                 <span class="text-slate-900 dark:text-white font-medium">Rp 25.000</span>
+               </div>
+               <div class="flex justify-between items-center text-sm mb-4 pb-4 border-b border-dashed border-slate-200 dark:border-slate-700">
+                 <span class="text-slate-500">Estimasi Perbaikan</span>
+                 <span class="text-slate-900 dark:text-white font-medium" id="service-repair-fee">Rp 0</span>
+               </div>
+               <div class="flex justify-between items-center">
+                 <span class="text-slate-900 dark:text-white font-display font-bold">Total Tagihan</span>
+                 <span class="text-primary font-black text-xl" id="service-total-fee">Rp 0</span>
+               </div>
+             </div>
+
+             <h2 class="text-slate-900 dark:text-white font-display font-bold text-lg mb-3">Metode Pembayaran</h2>
+             <div class="grid grid-cols-2 gap-3 mb-5">
+               <button class="payment-btn bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 rounded-xl flex items-center justify-center gap-2 hover:border-blue-500 active:scale-95 transition-all" data-method="QRIS">
+                 <span class="font-bold text-blue-600">QRIS</span>
+               </button>
+               <button class="payment-btn bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 rounded-xl flex items-center justify-center gap-2 hover:border-green-500 active:scale-95 transition-all" data-method="GoPay">
+                 <span class="font-bold text-green-500">GoPay</span>
+               </button>
+               <button class="payment-btn bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 rounded-xl flex items-center justify-center gap-2 hover:border-purple-500 active:scale-95 transition-all" data-method="OVO">
+                 <span class="font-bold text-purple-600">OVO</span>
+               </button>
+               <button class="payment-btn bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3 rounded-xl flex items-center justify-center gap-2 hover:border-slate-500 active:scale-95 transition-all" data-method="Tunai">
+                 <span class="font-bold text-slate-700 dark:text-slate-300">Tunai</span>
+               </button>
+             </div>
+             
+             <!-- QRIS/GoPay Mockup -->
+             <div id="payment-mockup" class="hidden bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 text-center mb-5">
+               <p class="text-slate-500 text-xs mb-3">Selesaikan pembayaran via aplikasi</p>
+               <!-- fake QR -->
+               <div id="payment-qr" class="w-40 h-40 bg-slate-100 dark:bg-slate-900 mx-auto rounded-lg border border-slate-200 dark:border-slate-700 flex items-center justify-center mb-3">
+                 <svg class="w-20 h-20 text-slate-300 dark:text-slate-600" fill="currentColor" viewBox="0 0 24 24"><path d="M3 3h8v8H3V3zm2 2v4h4V5H5zm8-2h8v8h-8V3zm2 2v4h4V5h-4zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm13-2h3v2h-3v-2zm-3 0h2v2h-2v-2zm3 3h3v2h-3v-2zm-3 0h2v2h-2v-2zm3 3h3v2h-3v-2zm-3 0h2v2h-2v-2z"></path></svg>
+               </div>
+               <p id="payment-method-name" class="font-bold text-slate-900 dark:text-white mb-4 text-sm">Bayar dengan QRIS</p>
+               <button id="btn-simulate-pay" class="w-full py-3.5 rounded-xl bg-primary hover:bg-rose-700 text-white font-bold active:scale-95 transition-transform shadow-md">
+                 Konfirmasi Pembayaran
+               </button>
+             </div>
+          </div>
+          <div class="h-10"></div>
+        </div>
+      </div>
+
+    </div><!-- end #app-container -->
+
+      <!-- ========================================= -->
+      <!-- MECHANIC SCREEN 1 — DASHBOARD            -->
+      <!-- ========================================= -->
+      <div id="screen-mechanic-home" class="screen hidden min-h-full flex flex-col bg-slate-100 dark:bg-slate-950 z-50 absolute inset-0 overflow-hidden relative">
+        <!-- Abstract map background -->
+        <div class="absolute inset-0 bg-slate-200 dark:bg-slate-900 opacity-30" style="background-image: radial-gradient(#94a3b8 1px, transparent 1px); background-size: 20px 20px;"></div>
+        <div class="absolute inset-0 map-gradient-overlay opacity-80"></div>
+
+        <!-- Header -->
+        <div class="relative pt-12 px-5 pb-6 z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-sm border-b border-white/20 dark:border-slate-800/50">
+          <div class="flex justify-between items-center mb-6">
+            <div class="flex items-center gap-3">
+              <img src="https://ui-avatars.com/api/?name=Ahmad+Sudirman&background=DC2626&color=fff" class="w-12 h-12 rounded-full border-2 border-white dark:border-slate-800 shadow-sm">
+              <div>
+                <h1 class="text-slate-900 dark:text-white font-display font-black text-lg">Ahmad Sudirman</h1>
+                <p class="text-primary text-[10px] font-bold tracking-widest uppercase" id="mechanic-status-text">OFFLINE</p>
+              </div>
+            </div>
+            
+            <!-- Modern Toggle -->
+            <button id="btn-toggle-online" class="w-16 h-8 bg-slate-300 dark:bg-slate-700 rounded-full relative transition-all shadow-inner">
+              <div class="w-6 h-6 bg-white rounded-full absolute top-1 left-1 transition-transform shadow-md flex items-center justify-center" id="toggle-knob">
+                <div class="w-2 h-2 rounded-full bg-slate-400 transition-colors" id="toggle-indicator"></div>
+              </div>
+            </button>
+          </div>
+          
+          <!-- Stats Cards -->
+          <div class="grid grid-cols-3 gap-3">
+            <div class="bg-white/60 dark:bg-slate-800/60 backdrop-blur rounded-2xl p-3 border border-white/40 dark:border-slate-700 text-center">
+              <div class="text-[10px] text-slate-500 font-bold uppercase mb-1">Pendapatan</div>
+              <div class="text-sm font-black text-slate-900 dark:text-white">Rp 450rb</div>
+            </div>
+            <div class="bg-white/60 dark:bg-slate-800/60 backdrop-blur rounded-2xl p-3 border border-white/40 dark:border-slate-700 text-center">
+              <div class="text-[10px] text-slate-500 font-bold uppercase mb-1">Rating</div>
+              <div class="text-sm font-black text-slate-900 dark:text-white">4.8 <span class="text-yellow-400 text-xs">★</span></div>
+            </div>
+            <div class="bg-white/60 dark:bg-slate-800/60 backdrop-blur rounded-2xl p-3 border border-white/40 dark:border-slate-700 text-center">
+              <div class="text-[10px] text-slate-500 font-bold uppercase mb-1">Selesai</div>
+              <div class="text-sm font-black text-slate-900 dark:text-white">5 Tugas</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex-1 relative z-10 px-5 flex flex-col justify-end pb-8" id="mechanic-orders-container">
+           <!-- Empty state initially -->
+           <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none" id="mechanic-empty-state">
+             <div class="relative w-32 h-32 mb-6">
+                <div class="absolute inset-0 border-4 border-slate-300 dark:border-slate-700 rounded-full animate-[ping_3s_infinite]"></div>
+                <div class="absolute inset-4 border-4 border-slate-300/50 dark:border-slate-700/50 rounded-full animate-[ping_3s_infinite_1s]"></div>
+                <div class="absolute inset-8 bg-slate-200 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-400">
+                  <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </div>
+             </div>
+             <p class="text-slate-500 dark:text-slate-400 font-bold tracking-widest text-xs uppercase">Menunggu Radar Pesanan</p>
+           </div>
+           
+           <!-- Mock Order (Glassmorphism) -->
+           <div id="mechanic-mock-order" class="hidden bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl p-6 rounded-[2rem] border border-white/50 dark:border-slate-700 shadow-[0_8px_30px_rgb(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.5)] transform transition-transform duration-500 translate-y-10 opacity-0">
+             <div class="flex justify-between items-start mb-4">
+               <div>
+                 <div class="inline-flex items-center gap-2 px-3 py-1 bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400 rounded-full text-[10px] font-bold mb-3 animate-pulse">
+                   <div class="w-1.5 h-1.5 rounded-full bg-rose-500"></div>
+                   DARURAT: BAN BOCOR
+                 </div>
+                 <h3 class="font-display font-black text-2xl text-slate-900 dark:text-white">Budi Santoso</h3>
+               </div>
+               <div class="text-right">
+                 <span class="block text-2xl font-black text-primary">2.4</span>
+                 <span class="text-[10px] font-bold text-slate-500">KM</span>
+               </div>
+             </div>
+             
+             <div class="bg-white/50 dark:bg-slate-800/50 rounded-2xl p-4 mb-5 flex gap-4 items-center">
+                <div class="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex shrink-0 items-center justify-center">🏍️</div>
+                <div>
+                  <p class="text-slate-900 dark:text-white font-bold text-sm">Honda Vario 150 (2020)</p>
+                  <p class="text-slate-500 dark:text-slate-400 text-[10px] italic line-clamp-1">"Ban belakang kempes mendadak di jalan."</p>
+                </div>
+             </div>
+
+             <button onclick="AppState.navigateTo('mechanic-tracking')" class="w-full py-4 bg-primary hover:bg-rose-700 text-white rounded-2xl font-display font-black text-sm active:scale-95 transition-all shadow-[0_0_20px_rgba(225,29,72,0.4)]">
+               TERIMA PESANAN SEKARANG
+             </button>
+           </div>
+        </div>
+      </div>
+
+      <!-- ========================================= -->
+      <!-- MECHANIC SCREEN 2 — TRACKING TO CUSTOMER -->
+      <!-- ========================================= -->
+      <div id="screen-mechanic-tracking" class="screen hidden h-full flex flex-col bg-slate-900 z-50 absolute inset-0">
+        <!-- Map -->
+        <div class="relative flex-1 bg-slate-200">
+          <div id="map-mechanic-tracking" class="h-full w-full z-10"></div>
+          
+          <button onclick="AppState.navigateTo('mechanic-home')" class="absolute top-14 left-5 z-20 w-12 h-12 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md rounded-full flex items-center justify-center shadow-lg text-slate-900 dark:text-white border border-slate-200 dark:border-slate-700 active:scale-95 transition-transform">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path></svg>
+          </button>
+        </div>
+        
+        <!-- Bottom Panel (Glass) -->
+        <div class="bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl rounded-t-[2.5rem] p-6 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] z-20 shrink-0 border-t border-white/50 dark:border-slate-700/50">
+           <div class="w-12 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto mb-6"></div>
+           <h3 class="text-slate-900 dark:text-white font-display font-black text-xl mb-1">Menuju Lokasi Customer</h3>
+           <p class="text-slate-500 font-medium text-xs mb-6 flex items-center gap-2">
+             <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+             Budi Santoso • Honda Vario 150
+           </p>
+           
+           <button onclick="MechanicApp.arriveAtCustomer()" class="w-full py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-display font-black tracking-wide text-sm active:scale-95 transition-all shadow-xl hover:bg-slate-800 dark:hover:bg-slate-100">
+             SAYA SUDAH TIBA
+           </button>
+        </div>
+      </div>
+
+      <!-- ========================================= -->
+      <!-- MECHANIC SCREEN 3 — SERVICE EXECUTION    -->
+      <!-- ========================================= -->
+      <div id="screen-mechanic-service" class="screen hidden min-h-full flex flex-col bg-slate-50 dark:bg-slate-950 z-50 absolute inset-0">
+        <div class="pt-14 px-6 pb-6 bg-white dark:bg-slate-900 shadow-sm border-b border-slate-200 dark:border-slate-800">
+          <h1 class="text-slate-900 dark:text-white font-display font-black text-2xl mb-1">Pengerjaan Servis</h1>
+          <p class="text-slate-500 dark:text-slate-400 text-xs font-medium">Customer: <strong class="text-slate-700 dark:text-slate-300">Budi Santoso</strong></p>
+        </div>
+        
+        <div class="flex-1 px-6 py-8 relative">
+           <!-- Vertical Timeline Line -->
+           <div class="absolute left-12 top-10 bottom-32 w-0.5 bg-slate-200 dark:bg-slate-800 z-0"></div>
+
+           <!-- Step 1 -->
+           <div class="relative z-10 flex gap-5 mb-8 transition-opacity" id="mech-card-1">
+             <div class="w-12 h-12 rounded-full bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400 font-black shrink-0 transition-all duration-300 shadow-sm" id="mech-icon-1">1</div>
+             <div class="flex-1 bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+               <h3 class="font-bold text-slate-900 dark:text-white mb-1">Diagnosa Kerusakan</h3>
+               <p class="text-[10px] text-slate-500 mb-4">Mengecek kondisi motor customer.</p>
+               <button onclick="MechanicApp.setServiceStep(1)" id="mech-btn-1" class="w-full py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold text-xs active:scale-95 transition-all shadow-md">
+                 MULAI DIAGNOSA
+               </button>
+             </div>
+           </div>
+           
+           <!-- Step 2 -->
+           <div class="relative z-10 flex gap-5 mb-8 opacity-50 transition-opacity" id="mech-card-2">
+             <div class="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-400 font-black shrink-0 transition-all duration-300" id="mech-icon-2">2</div>
+             <div class="flex-1 bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+               <h3 class="font-bold text-slate-900 dark:text-white mb-1">Eksekusi Perbaikan</h3>
+               <p class="text-[10px] text-slate-500 mb-4">Melakukan perbaikan sesuai persetujuan.</p>
+               <button onclick="MechanicApp.setServiceStep(2)" id="mech-btn-2" class="w-full py-3 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl font-bold text-xs active:scale-95 transition-all shadow-md" disabled>
+                 MULAI PERBAIKAN
+               </button>
+             </div>
+           </div>
+           
+           <!-- Step 3 -->
+           <div class="relative z-10 flex gap-5 opacity-50 transition-opacity" id="mech-card-3">
+             <div class="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-400 font-black shrink-0 transition-all duration-300" id="mech-icon-3">3</div>
+             <div class="flex-1 bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+               <h3 class="font-bold text-slate-900 dark:text-white mb-1">Penyelesaian</h3>
+               <p class="text-[10px] text-slate-500 mb-4">Servis selesai, kirim tagihan.</p>
+               <button onclick="MechanicApp.setServiceStep(3)" id="mech-btn-3" class="w-full py-3 bg-primary hover:bg-rose-700 text-white rounded-xl font-bold text-xs active:scale-95 transition-all shadow-md" disabled>
+                 KIRIM TAGIHAN (Rp150.000)
+               </button>
+             </div>
+           </div>
+        </div>
+      </div>
+
+      <!-- ========================================= -->
+      <!-- MECHANIC PROFILE MODAL                    -->
+      <!-- ========================================= -->
+      <div id="modal-mechanic-profile" class="hidden absolute inset-0 z-[100] overflow-hidden pointer-events-auto"></div>
+
+      <!-- ========================================= -->
+      <!-- REVIEW MODAL                              -->
+      <!-- ========================================= -->
+      <div id="modal-review" class="hidden absolute inset-0 z-[110] pointer-events-auto">
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-slate-900/70 backdrop-blur-sm transition-opacity opacity-0" id="review-backdrop"></div>
+        
+        <!-- Modal Content -->
+        <div class="absolute top-1/2 left-5 right-5 transform -translate-y-1/2 bg-white dark:bg-slate-900 rounded-[2rem] p-6 shadow-2xl scale-95 opacity-0 transition-all duration-300" id="review-content">
+          <div class="text-center mb-6">
+            <div class="w-16 h-16 bg-emerald-100 dark:bg-emerald-500/20 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
+               <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+            </div>
+            <h2 class="text-2xl font-display font-black text-slate-900 dark:text-white mb-2">Pembayaran Berhasil!</h2>
+            <p class="text-slate-500 text-sm">Bagaimana pelayanan mekanik kami?</p>
+          </div>
+          
+          <!-- Stars -->
+          <div class="flex justify-center gap-2 mb-6" id="review-stars">
+             <button class="review-star text-slate-300 dark:text-slate-700 hover:text-yellow-400 hover:scale-110 transition-all" data-value="1"><svg class="w-10 h-10" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg></button>
+             <button class="review-star text-slate-300 dark:text-slate-700 hover:text-yellow-400 hover:scale-110 transition-all" data-value="2"><svg class="w-10 h-10" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg></button>
+             <button class="review-star text-slate-300 dark:text-slate-700 hover:text-yellow-400 hover:scale-110 transition-all" data-value="3"><svg class="w-10 h-10" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg></button>
+             <button class="review-star text-slate-300 dark:text-slate-700 hover:text-yellow-400 hover:scale-110 transition-all" data-value="4"><svg class="w-10 h-10" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg></button>
+             <button class="review-star text-slate-300 dark:text-slate-700 hover:text-yellow-400 hover:scale-110 transition-all" data-value="5"><svg class="w-10 h-10" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg></button>
+          </div>
+          
+          <textarea class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 text-sm text-slate-900 dark:text-white mb-6 focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none" rows="3" placeholder="Tuliskan ulasan Anda (opsional)..."></textarea>
+          
+          <button id="btn-submit-review" class="w-full py-4 bg-primary hover:bg-rose-700 text-white font-display font-bold text-sm rounded-xl active:scale-95 transition-all shadow-md">
+             Kirim Ulasan
+          </button>
+          <button id="btn-skip-review" class="w-full mt-3 py-3 text-slate-500 text-sm font-bold active:scale-95 transition-all">
+             Lewati
+          </button>
+        </div>
+      </div>
+
+      <!-- ========================================= -->
+      <!-- BOTTOM NAVIGATION BAR                     -->
+      <!-- ========================================= -->
+      <nav id="bottom-nav" class="flex-shrink-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800 transition-colors duration-300">
+        <div class="flex items-center justify-around py-2 pb-6 px-2">
+          <button class="nav-btn active flex flex-col items-center gap-1 py-2 w-20 text-[10px] font-bold text-slate-400 transition-colors"
+                  data-screen="home">
+            <svg class="w-6 h-6 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+            <span>Beranda</span>
+          </button>
+          <button class="nav-btn flex flex-col items-center gap-1 py-2 w-20 text-[10px] font-semibold text-slate-400 transition-colors"
+                  data-screen="triage">
+            <svg class="w-6 h-6 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            <span>Pesan</span>
+          </button>
+          <button class="nav-btn flex flex-col items-center gap-1 py-2 w-20 text-[10px] font-semibold text-slate-400 transition-colors"
+                  data-screen="tracking">
+            <svg class="w-6 h-6 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            <span>Lacak</span>
+          </button>
+        </div>
+      </nav>
+
+    </div><!-- end flex wrapper -->
+  </div><!-- end device mockup -->
+
+  <!-- ========================================= -->
+  <!-- SCRIPTS (in order)                        -->
+  <!-- ========================================= -->
+  <script src="js/components/map.js"></script>
+  <script src="js/components/mechanic-card.js"></script>
+  <script src="js/screens/home.js"></script>
+  <script src="js/screens/triage.js"></script>
+  <script src="js/screens/tracking.js"></script>
+  <script src="js/screens/service.js"></script>
+  <script src="js/screens/mechanic.js"></script>
+  <script src="js/components/mechanic-profile.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>

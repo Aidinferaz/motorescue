@@ -1,0 +1,14 @@
+services:
+  motorescue:
+    build: .
+    container_name: motorescue-app
+    ports:
+      - "8080:8000"
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+    volumes:
+      - motorescue-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  motorescue-data:
